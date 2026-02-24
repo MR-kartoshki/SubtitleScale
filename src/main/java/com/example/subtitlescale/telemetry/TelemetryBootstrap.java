@@ -34,8 +34,14 @@ public final class TelemetryBootstrap {
                 .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
 
+            String modVersion = FabricLoader.getInstance()
+                .getModContainer("subtitlescale")
+                .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
+
             JsonObject payload = new JsonObject();
             payload.addProperty("mc", minecraftVersion);
+            payload.addProperty("v", modVersion);
             payload.addProperty("e", "c");
             payload.addProperty("l", "fabric");
 
