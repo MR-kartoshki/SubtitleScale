@@ -3,6 +3,7 @@
   "id": "subtitlescale",
   "version": "${version}",
   "name": "SubtitleScale",
+  "icon": "assets/subtitlescale/icon.png",
   "description": "Scales vanilla subtitles.",
   "authors": [
     "Iaske"
