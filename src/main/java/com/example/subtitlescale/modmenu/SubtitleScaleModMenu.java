@@ -15,8 +15,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class SubtitleScaleModMenu implements ModMenuApi {
-    private static final String DEFAULT_TELEMETRY_ENDPOINT = "https://140.86.211.122.sslip.io/ingest";
-
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
         return SubtitleScaleModMenu::createConfigScreen;
@@ -28,8 +26,6 @@ public final class SubtitleScaleModMenu implements ModMenuApi {
         AtomicReference<Float> scaleValue = new AtomicReference<>(SubtitleScaleConfig.getScale());
         int currentPercent = Math.round(SubtitleScaleConfig.getScale() * 100.0f);
         AtomicBoolean telemetryEnabled = new AtomicBoolean(telemetryConfig.enabled);
-        AtomicBoolean telemetrySendClientId = new AtomicBoolean(telemetryConfig.sendClientId);
-        AtomicReference<String> telemetryEndpoint = new AtomicReference<>(telemetryConfig.endpoint == null ? "" : telemetryConfig.endpoint);
 
         ConfigBuilder builder = ConfigBuilder.create()
             .setParentScreen(parent)
@@ -39,8 +35,6 @@ public final class SubtitleScaleModMenu implements ModMenuApi {
                 SubtitleScaleConfig.save();
 
                 telemetryConfig.enabled = telemetryEnabled.get();
-                telemetryConfig.sendClientId = telemetrySendClientId.get();
-                telemetryConfig.endpoint = telemetryEndpoint.get().trim();
                 telemetryConfig.save();
             });
 
@@ -59,18 +53,6 @@ public final class SubtitleScaleModMenu implements ModMenuApi {
             .startBooleanToggle(Component.literal("Enable telemetry"), telemetryConfig.enabled)
             .setDefaultValue(true)
             .setSaveConsumer(telemetryEnabled::set)
-            .build());
-
-        telemetry.addEntry(entries
-            .startBooleanToggle(Component.literal("Send client ID"), telemetryConfig.sendClientId)
-            .setDefaultValue(false)
-            .setSaveConsumer(telemetrySendClientId::set)
-            .build());
-
-        telemetry.addEntry(entries
-            .startStrField(Component.literal("Endpoint"), telemetryEndpoint.get())
-            .setDefaultValue(DEFAULT_TELEMETRY_ENDPOINT)
-            .setSaveConsumer(value -> telemetryEndpoint.set(value == null ? "" : value))
             .build());
 
         return builder.build();

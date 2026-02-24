@@ -11,16 +11,17 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 public final class TelemetryConfig {
+    public static final String ENDPOINT = "https://140.86.211.122.sslip.io/ingest";
+    public static final boolean SEND_CLIENT_ID = false;
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir()
         .resolve("subtitlescale")
         .resolve("telemetry.json");
 
     public boolean enabled = true;
-    public String endpoint = "https://140.86.211.122.sslip.io/ingest";
     public String clientId = "";
     public long lastSent = 0L;
-    public boolean sendClientId = false;
 
     public static TelemetryConfig loadOrCreate() {
         TelemetryConfig defaults = new TelemetryConfig();
@@ -40,9 +41,6 @@ public final class TelemetryConfig {
             }
 
             TelemetryConfig config = loaded != null ? loaded : defaults;
-            if (config.endpoint == null) {
-                config.endpoint = "";
-            }
             if (config.clientId == null) {
                 config.clientId = "";
             }
