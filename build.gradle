@@ -5,28 +5,25 @@ plugins {
     id "dev.kikugie.stonecutter" version "0.8.3"
 }
 
-def minecraftVersions = [
-    "1.21.9" : "1.21.9",
-    "1.21.10": "1.21.10",
-    "1.21.11": "1.21.11"
-]
-
-def fabricApiVersions = [
-    "1.21.9" : "0.134.1+1.21.9",
-    "1.21.10": "0.138.4+1.21.10",
-    "1.21.11": "0.141.3+1.21.11"
-]
-
-def modMenuVersions = [
-    "1.21.9" : "16.0.0",
-    "1.21.10": "16.0.0",
-    "1.21.11": "17.0.0-beta.2"
-]
-
-def clothConfigVersions = [
-    "1.21.9" : "20.0.149",
-    "1.21.10": "20.0.149",
-    "1.21.11": "21.11.153"
+def versionMatrix = [
+    "1.21.9" : [
+        minecraft  : "1.21.9",
+        fabricApi  : "0.134.1+1.21.9",
+        modMenu    : "16.0.0",
+        clothConfig: "20.0.149"
+    ],
+    "1.21.10": [
+        minecraft  : "1.21.10",
+        fabricApi  : "0.138.4+1.21.10",
+        modMenu    : "16.0.0",
+        clothConfig: "20.0.149"
+    ],
+    "1.21.11": [
+        minecraft  : "1.21.11",
+        fabricApi  : "0.141.3+1.21.11",
+        modMenu    : "17.0.0-beta.2",
+        clothConfig: "21.11.153"
+    ]
 ]
 
 def activeVersion = null
@@ -35,7 +32,7 @@ try {
 } catch (Throwable ignored) {
 }
 
-if (activeVersion == null && minecraftVersions.containsKey(project.name)) {
+if (activeVersion == null && versionMatrix.containsKey(project.name)) {
     activeVersion = project.name
 }
 
@@ -43,25 +40,15 @@ if (activeVersion == null) {
     throw new GradleException("Could not resolve active Stonecutter version for project ${project.path}.")
 }
 
-def minecraftVersion = minecraftVersions[activeVersion]
-if (minecraftVersion == null) {
+def versionDeps = versionMatrix[activeVersion]
+if (versionDeps == null) {
     throw new GradleException("Unsupported Minecraft version node: ${activeVersion}")
 }
 
-def fabricApiVersion = fabricApiVersions[activeVersion]
-if (fabricApiVersion == null) {
-    throw new GradleException("No Fabric API version mapped for Minecraft ${activeVersion}")
-}
-
-def modMenuVersion = modMenuVersions[activeVersion]
-if (modMenuVersion == null) {
-    throw new GradleException("No Mod Menu version mapped for Minecraft ${activeVersion}")
-}
-
-def clothConfigVersion = clothConfigVersions[activeVersion]
-if (clothConfigVersion == null) {
-    throw new GradleException("No Cloth Config version mapped for Minecraft ${activeVersion}")
-}
+def minecraftVersion = versionDeps.minecraft
+def fabricApiVersion = versionDeps.fabricApi
+def modMenuVersion = versionDeps.modMenu
+def clothConfigVersion = versionDeps.clothConfig
 
 group = maven_group
 version = "${mod_version}+${minecraftVersion}"
@@ -152,8 +139,12 @@ tasks.named("processResources", ProcessResources).configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude(".gitkeep")
     inputs.property "version", project.version
+    inputs.property "cloth_config_version", clothConfigVersion
     filesMatching("fabric.mod.json") {
-        expand(version: project.version)
+        expand(
+            version: project.version,
+            cloth_config_version: clothConfigVersion
+        )
     }
 }
 
