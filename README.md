@@ -4,7 +4,6 @@ SubtitleScale is a client-side Fabric mod that lets you resize the vanilla subti
 ## What it does
 - Scales the vanilla subtitles overlay as one grouped UI element
 - Adds an in-game config slider (in Mod Menu) for subtitle scale (`0.5x` to `2.0x`)
-- Works without Mod Menu installed (config button only appears when Mod Menu is present)
 - Supports Minecraft `1.21.9`, `1.21.10`, and `1.21.11`
 
 ## Installation
