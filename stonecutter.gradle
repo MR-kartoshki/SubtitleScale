@@ -1,0 +1,5 @@
+plugins {
+    id "dev.kikugie.stonecutter" version "0.8.3"
+}
+
+stonecutter.active "1.21.11" /* [SC] DO NOT EDIT */

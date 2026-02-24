@@ -1,0 +1,12 @@
+.gradle/
+build/
+out/
+run/
+.idea/
+*.iml
+
+# Stonecutter generated lock files
+stonecutter.lock
+
+# Fabric local runtime
+remappedSrc/
