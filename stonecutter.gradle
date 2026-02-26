@@ -3,3 +3,20 @@ plugins {
 }
 
 stonecutter.active "1.21.11" /* [SC] DO NOT EDIT */
+
+def universalBuildNode = "1.21.9"
+def universalMinMinecraft = "1.21.9"
+def universalMaxMinecraft = "1.21.11"
+def universalVersionSuffix = "mc${universalMinMinecraft}-${universalMaxMinecraft}"
+
+tasks.register("universalJar", Copy) {
+    group = "build"
+    description = "Builds one universal jar for Minecraft ${universalMinMinecraft} through ${universalMaxMinecraft}."
+
+    def sourceProjectPath = ":${universalBuildNode}"
+    dependsOn("${sourceProjectPath}:remapJar")
+
+    from(project(sourceProjectPath).tasks.named("remapJar").flatMap { it.archiveFile })
+    into(layout.buildDirectory.dir("libs"))
+    rename { "${archives_base_name}-${mod_version}+${universalVersionSuffix}.jar" }
+}

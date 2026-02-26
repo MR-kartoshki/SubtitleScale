@@ -1,0 +1,184 @@
+name: Release
+on:
+  push:
+    tags:
+      - v*.*.*
+  workflow_dispatch:
+    inputs:
+      skip_modrinth:
+        description: Skip Modrinth upload
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Tag name for GitHub Release when run manually (example: v1.1.0)"
+        required: false
+        default: ""
+        type: string
+permissions:
+  contents: write
+jobs:
+  build-and-publish:
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+      - name: Build jars
+        run: ./gradlew build universalJar --no-daemon
+      - name: Extract current changelog
+        run: ./gradlew writeCurrentChangelog --no-daemon
+      - name: Publish to Modrinth
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' &&
+          inputs.skip_modrinth != true)
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+
+          if [[ -z "${MODRINTH_TOKEN:-}" ]]; then
+            echo "::error::MODRINTH_TOKEN is not set"
+            exit 1
+          fi
+
+
+          PROJECT_ID="subtitlescale"
+          MOD_VERSION="$(grep '^mod_version=' gradle.properties | cut -d= -f2-)"
+          VERSION_NUMBER="${MOD_VERSION}"
+          VERSION_NAME="SubtitleScale ${MOD_VERSION} for MC 1.21.9-1.21.11"
+          GAME_VERSIONS_JSON='["1.21.9","1.21.10","1.21.11"]'
+          FILE_PARTS_JSON='["file"]'
+          DEPENDENCIES_JSON='[]'
+
+
+          mapfile -t JARS < <(find build/libs -maxdepth 1 -type f -name '*.jar' \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-dev.jar' | sort)
+
+          if [[ ${#JARS[@]} -eq 0 ]]; then
+            echo "::error::No release jar found under build/libs."
+            exit 1
+          fi
+
+          if [[ ${#JARS[@]} -gt 1 ]]; then
+            echo "::error::Multiple primary jars found under build/libs:"
+            printf '%s\n' "${JARS[@]}"
+            exit 1
+          fi
+
+          PRIMARY_JAR="${JARS[0]}"
+
+          CHANGELOG="Automated release ${VERSION_NUMBER}."
+          if [[ -f "build/current-changelog.md" ]]; then
+            FILE_CHANGELOG="$(cat build/current-changelog.md)"
+            if [[ -n "${FILE_CHANGELOG}" ]]; then
+              CHANGELOG="${FILE_CHANGELOG}"
+            fi
+          fi
+
+
+          PAYLOAD_FILE="$(mktemp)"
+          jq -cn \
+            --arg project_id "$PROJECT_ID" \
+            --arg name "$VERSION_NAME" \
+            --arg version_number "$VERSION_NUMBER" \
+            --arg changelog "$CHANGELOG" \
+            --argjson game_versions "$GAME_VERSIONS_JSON" \
+            --argjson file_parts "$FILE_PARTS_JSON" \
+            --argjson deps "$DEPENDENCIES_JSON" \
+            '{
+              project_id: $project_id,
+              name: $name,
+              version_number: $version_number,
+              changelog: $changelog,
+              game_versions: $game_versions,
+              loaders: ["fabric"],
+              featured: false,
+              version_type: "release",
+              file_parts: $file_parts,
+              dependencies: $deps
+            }' > "$PAYLOAD_FILE"
+
+          CHECK_STATUS="$(curl -sS -o /tmp/modrinth-check.json -w "%{http_code}" \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            "https://api.modrinth.com/v2/project/${PROJECT_ID}/version")"
+
+          if [[ "$CHECK_STATUS" != "200" ]]; then
+            echo "::error::Failed to check existing Modrinth versions (HTTP ${CHECK_STATUS})."
+            cat /tmp/modrinth-check.json || true
+            rm -f "$PAYLOAD_FILE"
+            exit 1
+          fi
+
+          if jq -e --arg vn "$VERSION_NUMBER" 'any(.[]; .version_number == $vn)' /tmp/modrinth-check.json > /dev/null; then
+            echo "Version ${VERSION_NUMBER} already exists on Modrinth; skipping upload."
+            rm -f "$PAYLOAD_FILE"
+            exit 0
+          fi
+
+          UPLOAD_STATUS="$(curl -sS -o /tmp/modrinth-upload.json -w "%{http_code}" -X POST "https://api.modrinth.com/v2/version" \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -F "data=@${PAYLOAD_FILE};type=application/json" \
+            -F "file=@${PRIMARY_JAR}")"
+
+          rm -f "$PAYLOAD_FILE"
+
+          if [[ "$UPLOAD_STATUS" != "200" && "$UPLOAD_STATUS" != "201" ]]; then
+            echo "::error::Modrinth upload failed with HTTP ${UPLOAD_STATUS}."
+            cat /tmp/modrinth-upload.json || true
+            exit 1
+          fi
+  github-release:
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    needs:
+      - build-and-publish
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name ==
+      'workflow_dispatch' && inputs.release_tag != '')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+      - name: Build release jar
+        run: ./gradlew universalJar --no-daemon
+      - name: Extract current changelog
+        run: ./gradlew writeCurrentChangelog --no-daemon
+      - name: Gather release jar
+        id: list
+        shell: bash
+        run: |
+          mkdir -p build
+
+          find build/libs -maxdepth 1 -type f -name '*.jar' \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-dev.jar' > build/release-files.txt
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+
+          cat build/release-files.txt >> $GITHUB_OUTPUT
+
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag ||
+            github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          body_path: build/current-changelog.md
+          files: ${{ steps.list.outputs.files }}

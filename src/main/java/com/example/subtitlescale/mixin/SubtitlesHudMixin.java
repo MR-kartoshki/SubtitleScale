@@ -18,18 +18,27 @@ public class SubtitlesHudMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;)V", at = @At("HEAD"))
     private void subtitlescale$pushSubtitleGroupScale(GuiGraphics context, CallbackInfo ci) {
         float scale = SubtitleScaleConfig.getScale();
-        if (scale == 1.0f) {
+        int offsetX = SubtitleScaleConfig.getOffsetX();
+        int offsetY = SubtitleScaleConfig.getOffsetY();
+        if (scale == 1.0f && offsetX == 0 && offsetY == 0) {
             return;
         }
 
-        Minecraft client = Minecraft.getInstance();
-        int w = client.getWindow().getGuiScaledWidth();
-        int h = client.getWindow().getGuiScaledHeight();
-
         context.pose().pushMatrix();
-        context.pose().translate(w, h);
-        context.pose().scale(scale, scale);
-        context.pose().translate(-w, -h);
+        if (scale != 1.0f) {
+            Minecraft client = Minecraft.getInstance();
+            int w = client.getWindow().getGuiScaledWidth();
+            int h = client.getWindow().getGuiScaledHeight();
+
+            context.pose().translate(w, h);
+            context.pose().scale(scale, scale);
+            context.pose().translate(-w, -h);
+        }
+
+        if (offsetX != 0 || offsetY != 0) {
+            context.pose().translate(offsetX, offsetY);
+        }
+
         subtitlescale$pushed = true;
     }
 

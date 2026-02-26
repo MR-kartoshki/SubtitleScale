@@ -26,6 +26,16 @@ def versionMatrix = [
     ]
 ]
 
+def universalMinMinecraft = "1.21.9"
+def universalMaxMinecraft = "1.21.11"
+def universalBuildNode = universalMinMinecraft
+def universalVersionSuffix = "mc${universalMinMinecraft}-${universalMaxMinecraft}"
+def universalClothConfigMin = versionMatrix[universalMinMinecraft]?.clothConfig
+
+if (universalClothConfigMin == null) {
+    throw new GradleException("Universal build node ${universalBuildNode} is missing from the version matrix.")
+}
+
 def activeVersion = null
 try {
     activeVersion = stonecutter.current.version
@@ -51,7 +61,7 @@ def modMenuVersion = versionDeps.modMenu
 def clothConfigVersion = versionDeps.clothConfig
 
 group = maven_group
-version = "${mod_version}+${minecraftVersion}"
+version = "${mod_version}+${universalVersionSuffix}"
 
 base {
     archivesName = archives_base_name
@@ -139,11 +149,11 @@ tasks.named("processResources", ProcessResources).configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude(".gitkeep")
     inputs.property "version", project.version
-    inputs.property "cloth_config_version", clothConfigVersion
+    inputs.property "cloth_config_version", universalClothConfigMin
     filesMatching("fabric.mod.json") {
         expand(
             version: project.version,
-            cloth_config_version: clothConfigVersion
+            cloth_config_version: universalClothConfigMin
         )
     }
 }
@@ -151,4 +161,42 @@ tasks.named("processResources", ProcessResources).configure {
 tasks.withType(Jar).configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude(".gitkeep")
+}
+
+def getCurrentChangelog() {
+    def changelog = rootProject.file("CHANGELOG.md")
+    if (!changelog.exists()) {
+        return ""
+    }
+
+    def lines = changelog.readLines()
+    def current = []
+    def started = false
+
+    for (line in lines) {
+        if (line.startsWith("## [") && started) {
+            break
+        }
+        if (line.startsWith("## [")) {
+            started = true
+        }
+        if (started) {
+            current.add(line)
+        }
+    }
+
+    return current.join("\n")
+}
+
+tasks.register("writeCurrentChangelog") {
+    group = "build"
+    description = "Writes the latest changelog section to build/current-changelog.md"
+
+    doLast {
+        def changelogContent = getCurrentChangelog()
+        def outputFile = rootProject.file("build/current-changelog.md")
+        outputFile.parentFile.mkdirs()
+        outputFile.text = changelogContent
+        println("Current changelog written to ${outputFile.path}")
+    }
 }
