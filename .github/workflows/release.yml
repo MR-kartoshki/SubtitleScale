@@ -34,9 +34,7 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
       - name: Build jars
-        run: ./gradlew build universalJar --no-daemon
-      - name: Extract current changelog
-        run: ./gradlew writeCurrentChangelog --no-daemon
+        run: ./gradlew universalJar writeCurrentChangelog --no-daemon
       - name: Publish to Modrinth
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' &&
           inputs.skip_modrinth != true)
@@ -53,7 +51,13 @@ jobs:
           fi
 
 
-          PROJECT_ID="subtitlescale"
+          USER_AGENT="SubtitleScaleReleaseWorkflow/1.0 (+github-actions)"
+          PROJECT_ID="OpmdDTo2"
+          if [[ -z "${PROJECT_ID}" ]] || ! [[ "${PROJECT_ID}" =~ ^[A-Za-z0-9]+$ ]]; then
+            echo "::error::Invalid PROJECT_ID '${PROJECT_ID}'. Expected Modrinth base62 project ID."
+            exit 1
+          fi
+
           MOD_VERSION="$(grep '^mod_version=' gradle.properties | cut -d= -f2-)"
           VERSION_NUMBER="${MOD_VERSION}"
           VERSION_NAME="SubtitleScale ${MOD_VERSION} for MC 1.21.9-1.21.11"
@@ -62,7 +66,7 @@ jobs:
           DEPENDENCIES_JSON='[]'
 
 
-          mapfile -t JARS < <(find build/libs -maxdepth 1 -type f -name '*.jar' \
+          mapfile -t JARS < <(find build/libs -maxdepth 1 -type f -name '*+mc*.jar' \
             ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-dev.jar' | sort)
 
           if [[ ${#JARS[@]} -eq 0 ]]; then
@@ -109,8 +113,14 @@ jobs:
               dependencies: $deps
             }' > "$PAYLOAD_FILE"
 
+          echo "PROJECT_ID=${PROJECT_ID}"
+          echo "VERSION_NUMBER=${VERSION_NUMBER}"
+          echo "PRIMARY_JAR=${PRIMARY_JAR}"
+          cat "$PAYLOAD_FILE"
+
           CHECK_STATUS="$(curl -sS -o /tmp/modrinth-check.json -w "%{http_code}" \
             -H "Authorization: ${MODRINTH_TOKEN}" \
+            -H "User-Agent: ${USER_AGENT}" \
             "https://api.modrinth.com/v2/project/${PROJECT_ID}/version")"
 
           if [[ "$CHECK_STATUS" != "200" ]]; then
@@ -128,6 +138,7 @@ jobs:
 
           UPLOAD_STATUS="$(curl -sS -o /tmp/modrinth-upload.json -w "%{http_code}" -X POST "https://api.modrinth.com/v2/version" \
             -H "Authorization: ${MODRINTH_TOKEN}" \
+            -H "User-Agent: ${USER_AGENT}" \
             -F "data=@${PAYLOAD_FILE};type=application/json" \
             -F "file=@${PRIMARY_JAR}")"
 
@@ -158,16 +169,14 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
       - name: Build release jar
-        run: ./gradlew universalJar --no-daemon
-      - name: Extract current changelog
-        run: ./gradlew writeCurrentChangelog --no-daemon
+        run: ./gradlew universalJar writeCurrentChangelog --no-daemon
       - name: Gather release jar
         id: list
         shell: bash
         run: |
           mkdir -p build
 
-          find build/libs -maxdepth 1 -type f -name '*.jar' \
+          find build/libs -maxdepth 1 -type f -name '*+mc*.jar' \
             ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-dev.jar' > build/release-files.txt
           echo "files<<EOF" >> $GITHUB_OUTPUT
 
