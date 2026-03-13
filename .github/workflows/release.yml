@@ -11,7 +11,7 @@ on:
         default: false
         type: boolean
       release_tag:
-        description: "Tag name for GitHub Release when run manually (example: v1.1.0)"
+        description: "Tag name for GitHub Release when run manually (example: v1.1.1)"
         required: false
         default: ""
         type: string
