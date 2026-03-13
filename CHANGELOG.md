@@ -2,6 +2,11 @@
 
 All notable changes to SubtitleScale are documented in this file.
 
+## [1.1.1] - 2026-03-14
+
+### Removed
+- Removed telemetry completely, including telemetry code, config, and Mod Menu controls.
+
 ## [1.1.0] - 2026-02-26
 
 ### Added

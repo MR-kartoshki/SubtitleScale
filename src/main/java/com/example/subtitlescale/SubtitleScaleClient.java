@@ -3,7 +3,6 @@ package com.example.subtitlescale;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import com.example.subtitlescale.config.SubtitleScaleConfig;
-import com.example.subtitlescale.telemetry.TelemetryBootstrap;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -20,8 +19,8 @@ public final class SubtitleScaleClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         SubtitleScaleConfig.loadOrCreate();
+        SubtitleScaleConfig.deleteLegacyConfigFile();
         registerPresetCycleHotkeys();
-        TelemetryBootstrap.initAndMaybeSend();
     }
 
     private static void registerPresetCycleHotkeys() {

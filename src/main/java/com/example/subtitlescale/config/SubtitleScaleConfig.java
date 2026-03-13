@@ -27,6 +27,7 @@ public final class SubtitleScaleConfig {
     private static final float[] QUICK_SCALE_PRESETS = {1.0f, 1.25f, 1.5f};
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir().resolve("subtitlescale");
     private static final Path CONFIG_PATH = CONFIG_DIR.resolve("config.json");
+    private static final Path LEGACY_CONFIG_PATH = CONFIG_DIR.resolve("telemetry.json");
 
     private static float scale = DEFAULT_SCALE;
     private static int offsetX = DEFAULT_OFFSET_X;
@@ -116,6 +117,14 @@ public final class SubtitleScaleConfig {
         } catch (IOException e) {
             LOGGER.error("Failed to load SubtitleScale config at {}", CONFIG_PATH, e);
             resetToDefaults();
+        }
+    }
+
+    public static void deleteLegacyConfigFile() {
+        try {
+            Files.deleteIfExists(LEGACY_CONFIG_PATH);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to delete legacy config file at {}", LEGACY_CONFIG_PATH, e);
         }
     }
 

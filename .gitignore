@@ -10,3 +10,4 @@ stonecutter.lock
 
 # Fabric local runtime
 remappedSrc/
+.vscode/settings.json
